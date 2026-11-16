@@ -60,10 +60,10 @@ function trackPersonPoint(prevIndex,nextIndex,normalized) {
     }
   return {x:Math.min(.999,Math.max(.001,bx/b.w)),y:Math.min(.999,Math.max(.001,by/b.h))};
 }
-function cropAround(frame,point) {
+function cropAround(frame,point,overrideZoom=null) {
   // Zooming in makes small skaters easier for the model; the mask is put back
   // into FULL-FRAME coordinates, fixing accidental cropping of later phases.
-  const zoom=Number($('aiCropZoom')?.value||2.0);
+  const zoom=overrideZoom||Number($('aiCropZoom')?.value||2.0);
   const w=Math.min(frame.width,Math.round(frame.width/zoom));
   const h=Math.min(frame.height,Math.round(frame.height/zoom));
   const x=Math.round(clamp(point.x*frame.width-w/2,0,frame.width-w));
@@ -77,30 +77,46 @@ function cropAround(frame,point) {
   const input=document.createElement('canvas');
   input.width=Math.round(w*scale);input.height=Math.round(h*scale);
   input.getContext('2d').drawImage(cv,0,0,input.width,input.height);
-  return {x,y,w,h,input,nx,ny};
+  async function segmentSingle(i,seed) {
+  const frame=frames[i];
+  const configuredZoom=Number($('aiCropZoom')?.value||2);
+  const attempts=[...new Set([configuredZoom, Math.max(1,configuredZoom/1.5), 1].map(x=>Number(x.toFixed(3))))];
+  for(let attempt=0;attempt<attempts.length;attempt++){
+    const crop=cropAround(frame,seed,attempts[attempt]);
+    const maskData=await nativeSegment(crop.input.toDataURL('image/jpeg',.91),crop.nx,crop.ny);
+    const bitmap=await loadImage(maskData);
+    // A model boundary that reaches a crop edge may be chopped off.
+    // Widen the crop and try again; finish with the full original frame.
+    const diagnostic=document.createElement('canvas');diagnostic.width=80;diagnostic.height=80;
+    const diagnosticCtx=diagnostic.getContext('2d',{willReadFrequently:true});
+    diagnosticCtx.drawImage(bitmap,0,0,80,80);
+    const data=diagnosticCtx.getImageData(0,0,80,80).data;
+    let edgeHits=0,foreground=0;
+    for(let y=0;y<80;y++)for(let x=0;x<80;x++){
+      const alpha=data[(y*80+x)*4+3];
+      if(alpha>125){foreground++;
+        if(x<2||y<2||x>77||y>77)edgeHits++;
+      }
+    }
+    if(foreground<3)throw Error('Модель не нашла человека: кадр '+(i+1));
+    if(foreground>4800)throw Error('Слишком большая область: кадр '+(i+1)+'. Нажми точнее на торс.');
+    if(edgeHits>4 && attempt<attempts.length-1)continue;
+    // Reproject the mask to the FULL video frame with alpha, no rectangular clipping.
+    const mask=document.createElement('canvas');mask.width=frame.width;mask.height=frame.height;
+    const mctx=mask.getContext('2d');
+    mctx.drawImage(bitmap,crop.x,crop.y,crop.w,crop.h);
+    const silhouette=document.createElement('canvas');
+    silhouette.width=frame.width;silhouette.height=frame.height;
+    const sctx=silhouette.getContext('2d');
+    sctx.drawImage(frame,0,0);
+    sctx.globalCompositeOperation='destination-in';
+    sctx.drawImage(mask,0,0);
+    sctx.globalCompositeOperation='source-over';
+    return {type:'auto',overlay:silhouette,mask,seed};
+  }
+  throw Error('Не удалось получить маску: кадр '+(i+1));
 }
-async function segmentSingle(i,seed) {
-  const frame=frames[i],crop=cropAround(frame,seed);
-  const maskData=await nativeSegment(crop.input.toDataURL('image/jpeg',.91),crop.nx,crop.ny);
-  const bitmap=await loadImage(maskData);
-  const mask=document.createElement('canvas');mask.width=frame.width;mask.height=frame.height;
-  const mctx=mask.getContext('2d');
-  mctx.drawImage(bitmap,crop.x,crop.y,crop.w,crop.h);
-  const silhouette=document.createElement('canvas');
-  silhouette.width=frame.width;silhouette.height=frame.height;
-  const sctx=silhouette.getContext('2d');
-  sctx.drawImage(frame,0,0);
-  sctx.globalCompositeOperation='destination-in';
-  sctx.drawImage(mask,0,0);
-  sctx.globalCompositeOperation='source-over';
-  // Refuse empty masks so we don't silently create blank/incorrect output.
-  const check=document.createElement('canvas');check.width=72;check.height=128;
-  const checkCtx=check.getContext('2d',{willReadFrequently:true});
-  checkCtx.drawImage(mask,0,0,72,128);
-  const pixels=checkCtx.getImageData(0,0,72,128).data;
-  let occupied=0;for(let p=3;p<pixels.length;p+=4)if(pixels[p]>65)occupied++;
-  if(occupied<3)throw Error('Модель не нашла объект: кадр '+(i+1));
-  return {type:'auto',overlay:silhouette,mask:mask,seed};
+y:silhouette,mask:mask,seed};
 }
 async function autoSegmentAll(startPoint) {
   if(!frames.length||autoBusy)return;
