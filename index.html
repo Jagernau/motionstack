@@ -27,7 +27,7 @@ button.danger{border-color:#92525d;color:#ffc9cb}button.selected{outline:2px sol
 </style>
 </head>
 <body>
-<header><h1>MotionStack <span style="color:#ffc857">●</span></h1><p>Одна фотография из нескольких реальных фаз трюка — без ИИ</p></header>
+<header><h1>MotionStack <span style="color:#ffc857">●</span></h1><p>Настоящие фазы движения • автовыделение по касанию • офлайн</p></header>
 <main>
 <section class="panel">
   <h2>1. Видео и интервал</h2>
@@ -35,40 +35,41 @@ button.danger{border-color:#92525d;color:#ffc9cb}button.selected{outline:2px sol
   <div class="grid" style="margin-top:12px">
     <div><label for="start">Начало, сек</label><input type="number" id="start" value="0" min="0" max="10000" step="0.1"></div>
     <div><label for="end">Конец, сек</label><input type="number" id="end" value="1.5" min="0.1" max="10000" step="0.1"></div>
-    <div><label for="count">Фаз (2–15)</label><input type="number" id="count" value="8" min="2" max="15" step="1"></div>
+    <div><label for="count">Фаз (2–15)</label><input type="number" id="count" value="6" min="2" max="15" step="1"></div>
   </div>
   <div class="row" style="margin-top:12px"><button class="primary" id="extract">Извлечь реальные кадры</button><label style="flex:1;min-width:140px;margin:0">Разрешение
-    <select id="resolution"><option value="1600">До 1600 пикселей</option><option value="1080">До 1080 пикселей (быстрее)</option><option value="2160">До 2160 пикселей</option></select></label></div>
+    <select id="resolution"><option value="1600">До 1600 пикселей</option><option value="1080" selected>До 1080 пикселей (быстрее)</option><option value="2160">До 2160 пикселей</option></select></label></div>
   <div id="status" role="status">Всё обрабатывается только на устройстве. Видео никуда не отправляется.</div>
 </section>
 <section class="panel" id="editPanel" hidden>
-  <h2>2. Выдели спортсмена</h2>
-  <p class="hint">Выбери фазу ниже и пальцем обведи дочь, включая скейт. Удобнее увеличить изображение. Обведённый фрагмент переносится на итоговую фотографию. Обводи каждую нужную фазу отдельно.</p>
+  <h2>2. Нажми на спортсмена</h2>
+  <p class="hint">В APK v0.2: выбери кадр и <b>один раз нажми на человека (лучше по центру туловища)</b>. Модель MagicTouch автоматически определит контур на всех кадрах. Для маленьких фигур в толпе попробуй уменьшить область анализа или перезапустить с другого кадра. Ручная обводка осталась на случай ошибок.</p>
   <div id="frames" aria-label="Выбор кадра"></div>
   <div class="row between"><strong id="frameTitle">Кадр</strong><span class="small" id="phaseStatus"></span></div>
   <div class="row" style="margin:10px 0"><div style="flex:1"><label for="zoom">Масштаб: <span id="zoomLabel">1×</span></label><input type="range" id="zoom" min="1" max="7" step="0.5" value="1"></div>
   <div><label for="bgFrame">Фоновый кадр</label><select id="bgFrame"></select></div></div>
   <div class="tools">
-     <button id="drawMode" class="selected">✎ Обводить</button><button id="panMode">✥ Перемещать</button>
+     <button id="tapMode" class="selected">✨ Выбрать касанием (AI)</button><button id="drawMode">✎ Вручную</button><button id="panMode">✥ Перемещать</button>
      <button id="undo">↶ Отменить контур</button><button id="saveMask" class="secondary">✓ Сохранить силуэт</button>
      <button id="removeMask" class="danger">Удалить силуэт</button>
   </div>
+  <div class="row" style="margin:0 0 8px"><label style="flex:1;min-width:160px;margin:0">Область анализа вокруг нажатия <select id="aiCropZoom"><option value="1.4">Шире (крупный спортсмен)</option><option value="2.0" selected>Обычная (рекомендуется)</option><option value="3.0">Уже (спортсмен далеко)</option></select></label></div>
   <div id="viewport"><canvas id="drawCanvas"></canvas></div>
-  <p class="small">В режиме «Обводить»: веди пальцем вдоль контура и замкни его. В режиме «Перемещать»: двигай увеличенное изображение пальцем. Можно сохранить только понравившиеся фазы.</p>
+  <p class="small">Режим ✨: нажми на торс спортсмена; программа обработает все выбранные кадры автоматически. Затем проверь каждый силуэт. В режиме «Вручную» проведи по контуру. «Перемещать» используется при увеличении. AI работает в APK, для Termux остаётся ручной режим.</p>
 </section>
 <section class="panel" id="resultPanel" hidden>
   <h2>3. Результат</h2>
-  <p class="small">На одном фоне совмещаются только обведённые реальные фазы. Сначала лучше обвести 4–6 положений, а затем при желании добавить остальные.</p>
+  <p class="small">На одном фоне совмещаются реальные фазы из видео, выбранные моделью или вручную. Можно удалить неверное выделение, выбрать другую фазу и нажать заново.</p>
   <canvas id="resultCanvas"></canvas>
   <div class="row"><button class="primary" id="export">Сохранить PNG</button><button id="refresh">Обновить результат</button></div>
-  <p class="note">Важно: если человек уже виден на выбранном фоновом кадре, он останется там. Выбери фон с минимальным перекрытием или другой момент видео. Автоматического удаления человека из фона в этой версии нет.</p>
+  <p class="note">В режиме «Автофон» используется медиана трёх реальных кадров, чтобы приглушить движущиеся объекты. Она не гарантирует полного удаления человека и может оставлять артефакты при большом движении камеры. Для точного результата нужна неподвижная камера.</p>
 </section>
 </main>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
 const fileInput = $('videoFile'), status = $('status'), canvas = $('drawCanvas'), cctx = canvas.getContext('2d'), result = $('resultCanvas'), rctx = result.getContext('2d');
-let frames=[], times=[], masks=[], active=0, backgroundIndex=0, points=[], drawing=false, mode='draw', zoom=1, viewportWidth=400;
+let frames=[], times=[], masks=[], active=0, backgroundIndex=-1, points=[], drawing=false, mode='tap', zoom=1, viewportWidth=400;
 let videoURL=null, processing=false;
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const report=s=>{status.textContent=s};
@@ -105,11 +106,11 @@ async function createFrames(){
        frames.push(captured);times.push(t);
        await sleep(0);
     }
-    masks=Array(count).fill(null);active=0;backgroundIndex=0;points=[];
+    masks=Array(count).fill(null);active=0;backgroundIndex=-1;points=[];cleanBackground=null;patchThumbs.clear();
     canvas.width=w;canvas.height=h;result.width=w;result.height=h;
     viewportWidth=Math.min(window.innerWidth-54,480);zoom=1;$('zoom').value='1';$('zoomLabel').textContent='1×';
     renderFrameButtons();renderBackgroundSelect();configureZoom();showFrame();renderComposite();
-    $('editPanel').hidden=false;$('resultPanel').hidden=false;report('Готово: '+count+' настоящих кадров. Обводи спортсмена на нужных фазах.');
+    $('editPanel').hidden=false;$('resultPanel').hidden=false;setMode(typeof AndroidBridge!=='undefined' && typeof AndroidBridge.segmentFrame==='function'?'tap':'draw');report('Готово: '+count+' настоящих кадров. Нажми на спортсмена для автоматического выделения.');
  }catch(e){console.error(e);report('Ошибка: '+e.message+'. Попробуй MP4 (H.264) или меньшее разрешение.');frames=[];$('editPanel').hidden=true;$('resultPanel').hidden=true}
  finally{video.pause();video.removeAttribute('src');video.load();video.remove();if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null}processing=false;$('extract').disabled=false}
 }
@@ -120,14 +121,14 @@ function renderFrameButtons(){
  b.addEventListener('click',()=>{active=i;points=[];renderFrameButtons();showFrame()});holder.appendChild(b);
  });
 }
-function renderBackgroundSelect(){const sel=$('bgFrame');sel.replaceChildren();frames.forEach((f,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=`${times[i].toFixed(2)} с`;sel.appendChild(o)});sel.value=String(backgroundIndex)}
+function renderBackgroundSelect(){const sel=$('bgFrame');sel.replaceChildren();const auto=document.createElement('option');auto.value='-1';auto.textContent='✨ Автофон';sel.appendChild(auto);frames.forEach((f,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=`${times[i].toFixed(2)} с`;sel.appendChild(o)});sel.value=String(backgroundIndex)}
 function configureZoom(){if(!frames.length)return;const cssWidth=Math.round(viewportWidth*zoom);canvas.style.width=cssWidth+'px';canvas.style.height='auto';$('zoomLabel').textContent=zoom+'×'}
 function px(p){return {x:clamp(p.x,0,canvas.width),y:clamp(p.y,0,canvas.height)}}
 function drawPolyline(ctx,path,color,lineWidth,fill){if(!path||path.length<2)return;ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}ctx.lineWidth=lineWidth;ctx.strokeStyle=color;ctx.stroke()}
 function showFrame(){
  if(!frames.length)return;const w=canvas.width,h=canvas.height;cctx.clearRect(0,0,w,h);cctx.drawImage(frames[active],0,0);
  const strokeWidth=Math.max(2,4*w/(viewportWidth*zoom));
- if(masks[active])drawPolyline(cctx,masks[active],'#70f5aa',strokeWidth,'rgba(45,230,139,.18)');
+ if(masks[active]) {if(masks[active].type==='auto') {cctx.save();cctx.globalAlpha=.5;cctx.drawImage(masks[active].mask,0,0);cctx.restore()} else drawPolyline(cctx,masks[active],'#70f5aa',strokeWidth,'rgba(45,230,139,.18)')}
  if(points.length>1)drawPolyline(cctx,points,'#ffce61',strokeWidth,'rgba(255,210,60,.15)');
  $('frameTitle').textContent=`Кадр ${active+1} · ${times[active].toFixed(2)} с`;
  $('phaseStatus').textContent=masks[active]?'Силуэт сохранён':points.length>=3?'Контур готов к сохранению':'Ещё не выделен';
@@ -138,6 +139,7 @@ let panStart=null;
 canvas.addEventListener('pointerdown',evt=>{
  if(!frames.length||processing)return;
  if(mode==='pan'){panStart={x:evt.clientX,y:evt.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop};canvas.setPointerCapture(evt.pointerId);return}
+ if(mode==='tap') {if(evt.isPrimary){const p=canvasPos(evt);autoSegmentAll({x:p.x/canvas.width,y:p.y/canvas.height});evt.preventDefault()}return}
  if(evt.isPrimary===false)return;
  drawing=true;points=[canvasPos(evt)];canvas.setPointerCapture(evt.pointerId);showFrame();evt.preventDefault();
 });
@@ -147,7 +149,8 @@ canvas.addEventListener('pointermove',evt=>{
 });
 function finishPointer(evt){if(panStart){panStart=null;return}if(!drawing)return;drawing=false;if(points.length<3)points=[];showFrame()}
 canvas.addEventListener('pointerup',finishPointer);canvas.addEventListener('pointercancel',finishPointer);
-function setMode(next){mode=next;$('drawMode').classList.toggle('selected',mode==='draw');$('panMode').classList.toggle('selected',mode==='pan');canvas.style.cursor=mode==='draw'?'crosshair':'grab'}
+function setMode(next){mode=next;$('tapMode').classList.toggle('selected',mode==='tap');$('drawMode').classList.toggle('selected',mode==='draw');$('panMode').classList.toggle('selected',mode==='pan');canvas.style.cursor=mode==='pan'?'grab':'crosshair'}
+$('tapMode').addEventListener('click',()=>setMode('tap'));
 $('drawMode').addEventListener('click',()=>setMode('draw'));
 $('panMode').addEventListener('click',()=>setMode('pan'));
 $('zoom').addEventListener('input',e=>{zoom=Number(e.target.value);configureZoom();showFrame()});
@@ -155,9 +158,9 @@ $('undo').addEventListener('click',()=>{points=[];showFrame()});
 $('saveMask').addEventListener('click',()=>{if(points.length<3){$('phaseStatus').textContent='Сначала обведи спортсмена (не менее 3 точек).';return}masks[active]=points.slice();points=[];renderFrameButtons();showFrame();renderComposite()});
 $('removeMask').addEventListener('click',()=>{if(!frames.length)return;masks[active]=null;points=[];renderFrameButtons();showFrame();renderComposite()});
 $('bgFrame').addEventListener('change',e=>{backgroundIndex=Number(e.target.value);renderComposite()});
-function renderComposite(){if(!frames.length)return;const w=result.width,h=result.height;rctx.clearRect(0,0,w,h);rctx.drawImage(frames[backgroundIndex],0,0);
+function renderComposite(){if(!frames.length)return;const w=result.width,h=result.height;rctx.clearRect(0,0,w,h);rctx.drawImage(backgroundIndex===-1?medianBackground():frames[backgroundIndex],0,0);
  // Apply later phases over earlier. 100% original pixels, no invented bodies.
- masks.forEach((path,i)=>{if(!path||path.length<3||i===backgroundIndex)return;rctx.save();rctx.beginPath();rctx.moveTo(path[0].x,path[0].y);for(let j=1;j<path.length;j++)rctx.lineTo(path[j].x,path[j].y);rctx.closePath();rctx.clip();rctx.drawImage(frames[i],0,0);rctx.restore()});
+ masks.forEach((path,i)=>{if(!path)return;if(path.type==='auto'){rctx.drawImage(path.overlay,0,0);return}if(path.length<3||i===backgroundIndex)return;rctx.save();rctx.beginPath();rctx.moveTo(path[0].x,path[0].y);for(let j=1;j<path.length;j++)rctx.lineTo(path[j].x,path[j].y);rctx.closePath();rctx.clip();rctx.drawImage(frames[i],0,0);rctx.restore()});
 }
 $('refresh').addEventListener('click',renderComposite);
 $('export').addEventListener('click',()=>{
@@ -171,5 +174,6 @@ $('export').addEventListener('click',()=>{
 });
 $('extract').addEventListener('click',createFrames);
 </script>
+<script src="autosegment.js"></script>
 </body>
 </html>
