@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'autosegment.js'
       - 'android/**'
       - '.github/workflows/build-apk.yml'
   pull_request:
@@ -38,10 +39,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Bundle MagicTouch model into APK (offline)
+        run: |
+          mkdir -p android/app/src/main/assets
+          curl --fail --location --retry 3 --retry-delay 3 --show-error             'https://storage.googleapis.com/mediapipe-models/interactive_segmenter_v2/magic_touch/int8/latest/interactive_segmentation.task'             --output android/app/src/main/assets/interactive_segmentation.task
+          test -s android/app/src/main/assets/interactive_segmentation.task
+          ls -lh android/app/src/main/assets/interactive_segmentation.task
       - name: Copy offline interface into Android assets
         run: |
           mkdir -p android/app/src/main/assets
           cp index.html android/app/src/main/assets/index.html
+          cp autosegment.js android/app/src/main/assets/autosegment.js
       - name: Assemble Android debug APK
         run: gradle -p android --no-daemon --stacktrace assembleDebug
       - name: Upload APK
