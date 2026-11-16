@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+<title>MotionStack — Фото фаз движения</title>
+<style>
+:root { color-scheme: dark; --bg:#11151c;--panel:#1d2430;--line:#354052;--ink:#eef4ff;--muted:#aab7ca;--accent:#ffc857;--accent2:#1c6c91;--danger:#ef7070; }
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Roboto,'Segoe UI',sans-serif}
+header{padding:22px 17px 13px;max-width:850px;margin:auto}header h1{font-size:28px;letter-spacing:-.6px;margin:0}header p{font-size:13px;color:var(--muted);margin:1px 0 0}main{max-width:850px;margin:auto;padding:0 12px 45px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px;margin:13px 0}
+h2{font-size:17px;margin:0 0 8px}p{margin:6px 0 12px}.small,.hint{font-size:12px;color:var(--muted)}
+.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.between{justify-content:space-between}.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+label{display:block;font-weight:600;font-size:12px;color:var(--muted);margin-bottom:6px}
+input[type=number],input[type=file],select{width:100%;min-width:0;background:#101720;border:1px solid var(--line);border-radius:9px;padding:12px 8px;color:var(--ink);font-size:15px}
+input[type=range]{accent-color:var(--accent);width:100%}button{font:inherit;border:1px solid #4b596f;color:var(--ink);background:#253243;border-radius:10px;padding:10px 13px;cursor:pointer;min-height:44px}
+button:disabled{opacity:.45;cursor:not-allowed}button.primary{background:var(--accent);border-color:var(--accent);color:#1b1710;font-weight:800}button.secondary{background:var(--accent2);border-color:#498fb3}
+button.danger{border-color:#92525d;color:#ffc9cb}button.selected{outline:2px solid var(--accent);outline-offset:0;background:#5b4b26}button.tiny{padding:6px 10px;font-size:12px;min-height:36px}
+#status{padding-top:9px;min-height:32px;color:var(--accent);font-size:12px;white-space:pre-wrap}#frames{display:flex;gap:7px;overflow-x:auto;padding:8px 2px 11px;margin-bottom:6px}#frames button{flex:0 0 auto;min-width:82px;text-align:center;font-size:12px;padding:8px 9px}#frames span{display:block;font-size:10px;color:var(--accent)}
+#viewport{background:#070c11;border:1px solid var(--line);border-radius:11px;overflow:auto;max-height:62vh;min-height:200px;touch-action:pan-x pan-y;position:relative}#drawCanvas{display:block;max-width:none;touch-action:none}
+.tools{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0 13px}.tools button{font-size:12px;padding:7px 10px;min-height:40px}
+#resultCanvas{display:block;width:100%;max-width:480px;height:auto;border:1px solid #4d5968;border-radius:10px;margin:12px auto;background:#111}
+.note{border-left:3px solid var(--accent);padding:7px 10px;font-size:12px;background:#292c2d;color:#d9e2f0}
+#phaseStatus{color:var(--accent);font-size:12px;margin:6px 0}
+[hidden]{display:none !important}
+@media(min-width:650px){.topgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.topgrid .panel{margin:10px 0}}
+</style>
+</head>
+<body>
+<header><h1>MotionStack <span style="color:#ffc857">●</span></h1><p>Одна фотография из нескольких реальных фаз трюка — без ИИ</p></header>
+<main>
+<section class="panel">
+  <h2>1. Видео и интервал</h2>
+  <input type="file" id="videoFile" accept="video/*,.mp4,.mov,.webm">
+  <div class="grid" style="margin-top:12px">
+    <div><label for="start">Начало, сек</label><input type="number" id="start" value="0" min="0" max="10000" step="0.1"></div>
+    <div><label for="end">Конец, сек</label><input type="number" id="end" value="1.5" min="0.1" max="10000" step="0.1"></div>
+    <div><label for="count">Фаз (2–15)</label><input type="number" id="count" value="8" min="2" max="15" step="1"></div>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="primary" id="extract">Извлечь реальные кадры</button><label style="flex:1;min-width:140px;margin:0">Разрешение
+    <select id="resolution"><option value="1600">До 1600 пикселей</option><option value="1080">До 1080 пикселей (быстрее)</option><option value="2160">До 2160 пикселей</option></select></label></div>
+  <div id="status" role="status">Всё обрабатывается только на устройстве. Видео никуда не отправляется.</div>
+</section>
+<section class="panel" id="editPanel" hidden>
+  <h2>2. Выдели спортсмена</h2>
+  <p class="hint">Выбери фазу ниже и пальцем обведи дочь, включая скейт. Удобнее увеличить изображение. Обведённый фрагмент переносится на итоговую фотографию. Обводи каждую нужную фазу отдельно.</p>
+  <div id="frames" aria-label="Выбор кадра"></div>
+  <div class="row between"><strong id="frameTitle">Кадр</strong><span class="small" id="phaseStatus"></span></div>
+  <div class="row" style="margin:10px 0"><div style="flex:1"><label for="zoom">Масштаб: <span id="zoomLabel">1×</span></label><input type="range" id="zoom" min="1" max="7" step="0.5" value="1"></div>
+  <div><label for="bgFrame">Фоновый кадр</label><select id="bgFrame"></select></div></div>
+  <div class="tools">
+     <button id="drawMode" class="selected">✎ Обводить</button><button id="panMode">✥ Перемещать</button>
+     <button id="undo">↶ Отменить контур</button><button id="saveMask" class="secondary">✓ Сохранить силуэт</button>
+     <button id="removeMask" class="danger">Удалить силуэт</button>
+  </div>
+  <div id="viewport"><canvas id="drawCanvas"></canvas></div>
+  <p class="small">В режиме «Обводить»: веди пальцем вдоль контура и замкни его. В режиме «Перемещать»: двигай увеличенное изображение пальцем. Можно сохранить только понравившиеся фазы.</p>
+</section>
+<section class="panel" id="resultPanel" hidden>
+  <h2>3. Результат</h2>
+  <p class="small">На одном фоне совмещаются только обведённые реальные фазы. Сначала лучше обвести 4–6 положений, а затем при желании добавить остальные.</p>
+  <canvas id="resultCanvas"></canvas>
+  <div class="row"><button class="primary" id="export">Сохранить PNG</button><button id="refresh">Обновить результат</button></div>
+  <p class="note">Важно: если человек уже виден на выбранном фоновом кадре, он останется там. Выбери фон с минимальным перекрытием или другой момент видео. Автоматического удаления человека из фона в этой версии нет.</p>
+</section>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const fileInput = $('videoFile'), status = $('status'), canvas = $('drawCanvas'), cctx = canvas.getContext('2d'), result = $('resultCanvas'), rctx = result.getContext('2d');
+let frames=[], times=[], masks=[], active=0, backgroundIndex=0, points=[], drawing=false, mode='draw', zoom=1, viewportWidth=400;
+let videoURL=null, processing=false;
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const report=s=>{status.textContent=s};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function waitEvent(obj,name,timeout=18000){return new Promise((resolve,reject)=>{const t=setTimeout(()=>{obj.removeEventListener(name,on);reject(new Error('Тайм-аут: '+name))},timeout);function on(){clearTimeout(t);obj.removeEventListener(name,on);resolve()}obj.addEventListener(name,on,{once:true})})}
+async function seek(video,t){
+  const time=Math.max(0.001,Math.min(t, Math.max(0.001,video.duration-0.02)));
+  if(Math.abs(video.currentTime-time)>0.003){const p=waitEvent(video,'seeked');video.currentTime=time;await p}
+  if(video.readyState<2){await waitEvent(video,'loadeddata')}
+  // Yield once to let the browser update the rendered video frame after seeking.
+  await new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+}
+async function createFrames(){
+ if(processing)return;
+ const file=fileInput.files?.[0];if(!file){report('Сначала выбери видео.');return}
+ const start=Number($('start').value),end=Number($('end').value),count=Number($('count').value);
+ if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end-start>60||!Number.isInteger(count)||count<2||count>15){report('Проверь интервал: конец больше начала, длительность до 60 секунд, число фаз от 2 до 15.');return}
+ processing=true;$('extract').disabled=true;frames=[];times=[];masks=[];points=[];$('editPanel').hidden=true;$('resultPanel').hidden=true;
+ let video=document.createElement('video');video.preload='auto';video.muted=true;video.playsInline=true;video.setAttribute('playsinline','');video.style.display='none';document.body.appendChild(video);
+ if(videoURL)URL.revokeObjectURL(videoURL);videoURL=URL.createObjectURL(file);
+ try{
+    video.src=videoURL;video.load();await waitEvent(video,'loadedmetadata',30000);
+    if(end>video.duration+0.06)throw new Error('Конец интервала позже длительности видео ('+video.duration.toFixed(2)+' c).');
+    report('Видео: '+video.videoWidth+'×'+video.videoHeight+', длительность '+video.duration.toFixed(2)+' с.');
+    const longSide=Number($('resolution').value)||1600,fac=Math.min(1,longSide/Math.max(video.videoWidth,video.videoHeight));
+    const w=Math.round(video.videoWidth*fac),h=Math.round(video.videoHeight*fac);
+    if(w<2||h<2)throw new Error('Не удалось прочитать размер видео.');
+    const scratch=document.createElement('canvas');scratch.width=w;scratch.height=h;const ctx=scratch.getContext('2d',{alpha:false});
+    for(let i=0;i<count;i++){
+       const t=start+(end-start)*i/(count-1);report(`Извлечение кадра ${i+1}/${count} — ${t.toFixed(2)} с`);
+       await seek(video,t);ctx.drawImage(video,0,0,w,h);
+       const captured=document.createElement('canvas');captured.width=w;captured.height=h;
+       captured.getContext('2d',{alpha:false}).drawImage(scratch,0,0);
+       frames.push(captured);times.push(t);
+       await sleep(0);
+    }
+    masks=Array(count).fill(null);active=0;backgroundIndex=0;points=[];
+    canvas.width=w;canvas.height=h;result.width=w;result.height=h;
+    viewportWidth=Math.min(window.innerWidth-54,480);zoom=1;$('zoom').value='1';$('zoomLabel').textContent='1×';
+    renderFrameButtons();renderBackgroundSelect();configureZoom();showFrame();renderComposite();
+    $('editPanel').hidden=false;$('resultPanel').hidden=false;report('Готово: '+count+' настоящих кадров. Обводи спортсмена на нужных фазах.');
+ }catch(e){console.error(e);report('Ошибка: '+e.message+'. Попробуй MP4 (H.264) или меньшее разрешение.');frames=[];$('editPanel').hidden=true;$('resultPanel').hidden=true}
+ finally{video.pause();video.removeAttribute('src');video.load();video.remove();if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null}processing=false;$('extract').disabled=false}
+}
+function renderFrameButtons(){
+ const holder=$('frames');holder.replaceChildren();frames.forEach((f,i)=>{
+ const b=document.createElement('button');b.type='button';b.className=i===active?'selected':'';
+ b.innerHTML=`Кадр ${i+1}<span>${times[i].toFixed(2)} c${masks[i]?' · ✓':''}</span>`;
+ b.addEventListener('click',()=>{active=i;points=[];renderFrameButtons();showFrame()});holder.appendChild(b);
+ });
+}
+function renderBackgroundSelect(){const sel=$('bgFrame');sel.replaceChildren();frames.forEach((f,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=`${times[i].toFixed(2)} с`;sel.appendChild(o)});sel.value=String(backgroundIndex)}
+function configureZoom(){if(!frames.length)return;const cssWidth=Math.round(viewportWidth*zoom);canvas.style.width=cssWidth+'px';canvas.style.height='auto';$('zoomLabel').textContent=zoom+'×'}
+function px(p){return {x:clamp(p.x,0,canvas.width),y:clamp(p.y,0,canvas.height)}}
+function drawPolyline(ctx,path,color,lineWidth,fill){if(!path||path.length<2)return;ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}ctx.lineWidth=lineWidth;ctx.strokeStyle=color;ctx.stroke()}
+function showFrame(){
+ if(!frames.length)return;const w=canvas.width,h=canvas.height;cctx.clearRect(0,0,w,h);cctx.drawImage(frames[active],0,0);
+ const strokeWidth=Math.max(2,4*w/(viewportWidth*zoom));
+ if(masks[active])drawPolyline(cctx,masks[active],'#70f5aa',strokeWidth,'rgba(45,230,139,.18)');
+ if(points.length>1)drawPolyline(cctx,points,'#ffce61',strokeWidth,'rgba(255,210,60,.15)');
+ $('frameTitle').textContent=`Кадр ${active+1} · ${times[active].toFixed(2)} с`;
+ $('phaseStatus').textContent=masks[active]?'Силуэт сохранён':points.length>=3?'Контур готов к сохранению':'Ещё не выделен';
+}
+function canvasPos(evt){const rect=canvas.getBoundingClientRect();return px({x:(evt.clientX-rect.left)*canvas.width/rect.width,y:(evt.clientY-rect.top)*canvas.height/rect.height})}
+const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+let panStart=null;
+canvas.addEventListener('pointerdown',evt=>{
+ if(!frames.length||processing)return;
+ if(mode==='pan'){panStart={x:evt.clientX,y:evt.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop};canvas.setPointerCapture(evt.pointerId);return}
+ if(evt.isPrimary===false)return;
+ drawing=true;points=[canvasPos(evt)];canvas.setPointerCapture(evt.pointerId);showFrame();evt.preventDefault();
+});
+canvas.addEventListener('pointermove',evt=>{
+ if(panStart){$('viewport').scrollLeft=panStart.left+panStart.x-evt.clientX;$('viewport').scrollTop=panStart.top+panStart.y-evt.clientY;return}
+ if(!drawing)return;const pt=canvasPos(evt);const threshold=2*canvas.width/(viewportWidth*zoom);if(distance(pt,points[points.length-1])>threshold){points.push(pt);showFrame()}evt.preventDefault();
+});
+function finishPointer(evt){if(panStart){panStart=null;return}if(!drawing)return;drawing=false;if(points.length<3)points=[];showFrame()}
+canvas.addEventListener('pointerup',finishPointer);canvas.addEventListener('pointercancel',finishPointer);
+function setMode(next){mode=next;$('drawMode').classList.toggle('selected',mode==='draw');$('panMode').classList.toggle('selected',mode==='pan');canvas.style.cursor=mode==='draw'?'crosshair':'grab'}
+$('drawMode').addEventListener('click',()=>setMode('draw'));
+$('panMode').addEventListener('click',()=>setMode('pan'));
+$('zoom').addEventListener('input',e=>{zoom=Number(e.target.value);configureZoom();showFrame()});
+$('undo').addEventListener('click',()=>{points=[];showFrame()});
+$('saveMask').addEventListener('click',()=>{if(points.length<3){$('phaseStatus').textContent='Сначала обведи спортсмена (не менее 3 точек).';return}masks[active]=points.slice();points=[];renderFrameButtons();showFrame();renderComposite()});
+$('removeMask').addEventListener('click',()=>{if(!frames.length)return;masks[active]=null;points=[];renderFrameButtons();showFrame();renderComposite()});
+$('bgFrame').addEventListener('change',e=>{backgroundIndex=Number(e.target.value);renderComposite()});
+function renderComposite(){if(!frames.length)return;const w=result.width,h=result.height;rctx.clearRect(0,0,w,h);rctx.drawImage(frames[backgroundIndex],0,0);
+ // Apply later phases over earlier. 100% original pixels, no invented bodies.
+ masks.forEach((path,i)=>{if(!path||path.length<3||i===backgroundIndex)return;rctx.save();rctx.beginPath();rctx.moveTo(path[0].x,path[0].y);for(let j=1;j<path.length;j++)rctx.lineTo(path[j].x,path[j].y);rctx.closePath();rctx.clip();rctx.drawImage(frames[i],0,0);rctx.restore()});
+}
+$('refresh').addEventListener('click',renderComposite);
+$('export').addEventListener('click',()=>{
+ if(!frames.length)return;renderComposite();const name='motionstack_'+Date.now()+'.png';
+ if(window.AndroidBridge && typeof AndroidBridge.savePng==='function'){
+   try{AndroidBridge.savePng(result.toDataURL('image/png'));report('Открылось сохранение PNG — выбери папку.');}
+   catch(err){report('Не удалось открыть сохранение: '+err.message)}
+ }else{
+   result.toBlob(blob=>{if(!blob){report('Не удалось сохранить PNG');return}const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);report('PNG отправлен в загрузки браузера.')},'image/png');
+ }
+});
+$('extract').addEventListener('click',createFrames);
+</script>
+</body>
+</html>
