@@ -115,18 +115,17 @@ async function autoSegmentAll(startPoint) {
   patchThumbs.clear();
   const sequences=[[startIndex,1],...Array.from({length:frames.length-startIndex-1},(_,k)=>[startIndex+1+k,1]),
                    ...Array.from({length:startIndex},(_,k)=>[startIndex-1-k,-1])];
-  let done=0,prev=startIndex,seed=startPoint,failed=[];
+  let done=0,prev=startIndex,seed=startPoint,failed=[],lastDirection=null;
   try {
     for(const [i,dir] of sequences) {
       if(i===startIndex){seed=startPoint}
       else {
-        if((i>startIndex && dir===1 && prev<i-1)||(i<startIndex && dir===-1 && prev>i+1)){
+        if (lastDirection!==null && lastDirection!==dir) {
           prev=startIndex;seed=startPoint;
         }
-        // Avoid tracking from a frame on the opposite side of the selected frame.
-        if((i>startIndex && prev>=i)||(i<startIndex && prev<=i)){prev=startIndex;seed=startPoint}
         seed=trackPersonPoint(prev,i,seed);
       }
+      lastDirection=dir;
       report('Нейросеть: кадр '+(i+1)+' из '+frames.length+' — '+times[i].toFixed(2)+' с');
       try {
         masks[i]=await segmentSingle(i,seed);done++;
