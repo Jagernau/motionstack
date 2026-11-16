@@ -9,7 +9,7 @@
 [![Build Android APK](https://github.com/Jagernau/motionstack/actions/workflows/build-apk.yml/badge.svg)](https://github.com/Jagernau/motionstack/actions/workflows/build-apk.yml)
 ![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![Offline](https://img.shields.io/badge/Processing-Offline-4e9ab8)
-![Version](https://img.shields.io/badge/version-0.2.0-yellow)
+![Version](https://img.shields.io/badge/version-0.2.1-yellow)
 
 [📲 Скачать APK из Actions](https://github.com/Jagernau/motionstack/actions/workflows/build-apk.yml) · [🛠️ Исходники](https://github.com/Jagernau/motionstack) · [💡 Предложения](https://github.com/Jagernau/motionstack/issues)
 
@@ -18,6 +18,9 @@
 ---
 
 ## ✨ Что такое MotionStack?
+
+**v0.2.1 (исправление):** устранена синтаксическая ошибка JS, из-за которой загрузка видео падала с `cleanBackground is not defined`. Сборка автоматически проверяет синтаксис обеих частей интерфейса перед упаковкой APK.
+
 
 **Хронофотография** (motion stacking / sequence photography) — способ показать разные положения одного движущегося объекта на *одном изображении*.
 

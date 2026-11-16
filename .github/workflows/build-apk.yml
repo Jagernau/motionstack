@@ -7,6 +7,7 @@ on:
     paths:
       - 'index.html'
       - 'autosegment.js'
+      - 'tests/**'
       - 'android/**'
       - '.github/workflows/build-apk.yml'
   pull_request:
@@ -26,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Check JavaScript syntax before packaging
+        run: python3 tests/check_js.py
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -76,19 +79,19 @@ jobs:
       - name: Prepare APK filename
         run: |
           test -s release/app-debug.apk
-          mv release/app-debug.apk release/MotionStack-v0.2.0-debug.apk
-          ls -lh release/MotionStack-v0.2.0-debug.apk
+          mv release/app-debug.apk release/MotionStack-v0.2.1-debug.apk
+          ls -lh release/MotionStack-v0.2.1-debug.apk
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          if gh release view v0.2.0 >/dev/null 2>&1; then
-            gh release upload v0.2.0 release/MotionStack-v0.2.0-debug.apk --clobber
+          if gh release view v0.2.1 >/dev/null 2>&1; then
+            gh release upload v0.2.1 release/MotionStack-v0.2.1-debug.apk --clobber
           else
-            gh release create v0.2.0 release/MotionStack-v0.2.0-debug.apk \
+            gh release create v0.2.1 release/MotionStack-v0.2.1-debug.apk \
               --target "$GITHUB_SHA" \
-              --title "MotionStack v0.2.0 — Android beta" \
+              --title "MotionStack v0.2.1 — Android beta" \
               --prerelease \
               --notes "Debug APK for Android. Includes offline MagicTouch tap-to-segment, automatic frame masks, and full-frame cutouts. Experimental: test with your own video. To replace an existing debug install signed with another key, uninstall the old version first."
           fi
